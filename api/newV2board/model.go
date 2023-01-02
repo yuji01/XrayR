@@ -14,7 +14,6 @@ type serverConfig struct {
 		PushInterval int `json:"push_interval"`
 		PullInterval int `json:"pull_interval"`
 	} `json:"base_config"`
-	Routes []route `json:"routes"`
 }
 
 type shadowsocks struct {

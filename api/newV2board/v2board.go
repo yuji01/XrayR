@@ -161,7 +161,12 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		return nil, errors.New("server port must > 0")
 	}
 
-	c.resp.Store(server)
+	if r, ok := nodeInfoResp.CheckGet("routes"); ok {
+		rb, _ := r.MarshalJSON()
+		var routes []route
+		json.Unmarshal(rb, &routes)
+		c.resp.Store(routes)
+	}
 
 	switch c.NodeType {
 	case "V2ray":
@@ -260,8 +265,7 @@ func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 
 // GetNodeRule implements the API interface
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
-	routes := c.resp.Load().(*serverConfig).Routes
-
+	routes := c.resp.Load().([]route)
 	ruleList := c.LocalRuleList
 
 	for i := range routes {
@@ -308,7 +312,6 @@ func (c *APIClient) parseTrojanNodeResponse(s *serverConfig) (*api.NodeInfo, err
 		TLSType:           TLSType,
 		Host:              s.Host,
 		ServiceName:       s.ServerName,
-		NameServerConfig:  s.parseDNSConfig(),
 	}
 	return nodeInfo, nil
 }
@@ -339,7 +342,6 @@ func (c *APIClient) parseSSNodeResponse(s *serverConfig) (*api.NodeInfo, error) 
 		TransportProtocol: "tcp",
 		CypherMethod:      s.Cipher,
 		ServerKey:         s.ServerKey, // shadowsocks2022 share key
-		NameServerConfig:  s.parseDNSConfig(),
 		Header:            header,
 	}, nil
 }
@@ -389,16 +391,18 @@ func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, erro
 		EnableVless:       c.EnableVless,
 		ServiceName:       s.NetworkSettings.ServiceName,
 		Header:            header,
-		NameServerConfig:  s.parseDNSConfig(),
 	}, nil
 }
 
-func (s *serverConfig) parseDNSConfig() (nameServerList []*conf.NameServerConfig) {
-	for i := range s.Routes {
-		if s.Routes[i].Action == "dns" {
+func (c *APIClient) parseDNSConfig() (nameServerList []*conf.NameServerConfig) {
+	var routes []route
+	json.Unmarshal(c.resp.Load().([]byte), &routes)
+
+	for i := range routes {
+		if routes[i].Action == "dns" {
 			nameServerList = append(nameServerList, &conf.NameServerConfig{
-				Address: &conf.Address{Address: net.ParseAddress(s.Routes[i].ActionValue)},
-				Domains: s.Routes[i].Match,
+				Address: &conf.Address{Address: net.ParseAddress(routes[i].ActionValue)},
+				Domains: routes[i].Match,
 			})
 		}
 	}
