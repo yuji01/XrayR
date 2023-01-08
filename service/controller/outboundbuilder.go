@@ -24,7 +24,7 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 	}
 
 	// Freedom Protocol setting
-	var domainStrategy = "Asis"
+	domainStrategy := "" // null == AsIs
 	if config.EnableDNS {
 		if config.DNSType != "" {
 			domainStrategy = config.DNSType
